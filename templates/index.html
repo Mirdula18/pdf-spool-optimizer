@@ -1,128 +1,310 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h1>PDF Flattener</h1>
-<p class="subtitle">Upload a PDF to flatten and compress for optimized printing.</p>
+<div class="header-section">
+    <h1 class="title">PDF Flattener</h1>
+    <p class="subtitle">Upload a PDF to flatten and compress for optimized printing.</p>
+</div>
 
 <div id="error-msg" class="message message-error hidden"></div>
 <div id="success-msg" class="message message-success hidden"></div>
 
-<form id="upload-form">
-    <div class="form-group">
-        <label for="dropzone">PDF File</label>
-        <div id="dropzone" class="dropzone">
-            <input type="file" id="file-input" name="file" accept=".pdf" class="file-input">
-            <div class="dropzone-content">
-                <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="17 8 12 3 7 8"/>
-                    <line x1="12" y1="3" x2="12" y2="15"/>
-                </svg>
-                <span class="dropzone-text">Drop your PDF here or click to browse</span>
-                <span id="file-name" class="dropzone-filename"></span>
+<div class="form-container">
+    <form id="upload-form">
+        <div class="form-group">
+            <label for="dropzone" class="form-label">PDF File</label>
+            <div id="dropzone" class="dropzone">
+                <input type="file" id="file-input" name="file" accept=".pdf" class="file-input">
+                <div class="dropzone-content">
+                    <div class="icon-wrapper">
+                        <svg class="dropzone-icon" xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                            <polyline points="17 8 12 3 7 8"/>
+                            <line x1="12" y1="3" x2="12" y2="15"/>
+                        </svg>
+                    </div>
+                    <span class="dropzone-text">Drop your PDF here or <span class="text-accent">click to browse</span></span>
+                    <span id="file-name" class="dropzone-filename"></span>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div class="form-group">
-        <label for="dpi">DPI (72–300)</label>
-        <input type="number" id="dpi" name="dpi" value="100" min="72" max="300" step="1">
-    </div>
+        <div class="form-group">
+            <label for="dpi" class="form-label">DPI Resolution (72–300)</label>
+            <input type="number" id="dpi" name="dpi" value="100" min="72" max="300" step="1" class="modern-input">
+        </div>
 
-    <div class="form-actions">
-        <button type="submit" id="submit-btn" class="btn btn-primary" disabled>
-            <span id="btn-text">Flatten PDF</span>
-            <span id="btn-spinner" class="spinner hidden"></span>
-        </button>
-    </div>
-</form>
+        <div class="form-actions">
+            <button type="submit" id="submit-btn" class="btn btn-primary submit-btn" disabled>
+                <span id="btn-text">Flatten PDF</span>
+                <span id="btn-spinner" class="spinner hidden"></span>
+            </button>
+        </div>
+    </form>
+</div>
 
 <div id="download-section" class="download-section hidden">
     <div class="download-card">
-        <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-            <polyline points="14 2 14 8 20 8"/>
-            <line x1="12" y1="18" x2="12" y2="12"/>
-            <polyline points="9 15 12 18 15 15"/>
-        </svg>
-        <p class="download-text">Your flattened PDF is ready</p>
-        <a id="download-btn" href="#" class="btn btn-primary" download>Download PDF</a>
+        <div class="success-icon-wrapper">
+            <svg class="download-icon" xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="12" y1="18" x2="12" y2="12"/>
+                <polyline points="9 15 12 18 15 15"/>
+            </svg>
+        </div>
+        <div class="download-info">
+            <h3 class="download-title">Success!</h3>
+            <p class="download-text">Your flattened PDF is ready for print.</p>
+        </div>
+        <a id="download-btn" href="#" class="btn btn-success" download>Download File</a>
     </div>
 </div>
 {% endblock %}
 
 {% block head %}
 <style>
-    .dropzone {
-        border: 2px dashed var(--border);
-        border-radius: 8px;
+    /* Base spacing and typography */
+    .header-section {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+    .title {
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .text-accent {
+        color: var(--accent, #3b82f6);
+        font-weight: 500;
+    }
+    .form-label {
+        display: block;
+        margin-bottom: 0.5rem;
+        font-weight: 600;
+        color: var(--text-main, #334155);
+    }
+    
+    /* Container Card */
+    .form-container {
+        background: var(--bg-card, #ffffff);
         padding: 2rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid var(--border, #e2e8f0);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+
+    /* Dropzone Styling & Animations */
+    .dropzone {
+        border: 2px dashed var(--border, #cbd5e1);
+        border-radius: 12px;
+        padding: 3rem 2rem;
+        background: var(--bg-muted, #f8fafc);
         text-align: center;
         cursor: pointer;
-        transition: border-color 0.15s, background 0.15s;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        position: relative;
+        overflow: hidden;
     }
     .dropzone:hover, .dropzone.dragover {
-        border-color: var(--accent);
-        background: rgba(37, 99, 235, 0.04);
+        border-color: var(--accent, #3b82f6);
+        background: rgba(59, 130, 246, 0.04);
+        transform: scale(1.01);
     }
+    
+    /* Icon bounce effect */
+    .icon-wrapper {
+        background: white;
+        padding: 1rem;
+        border-radius: 50%;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        margin-bottom: 1rem;
+        transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .dropzone:hover .icon-wrapper, .dropzone.dragover .icon-wrapper {
+        transform: translateY(-8px) scale(1.05);
+        color: var(--accent, #3b82f6);
+    }
+    .dropzone-icon {
+        color: var(--text-muted, #64748b);
+        transition: color 0.3s ease;
+    }
+    .dropzone:hover .dropzone-icon, .dropzone.dragover .dropzone-icon {
+        color: var(--accent, #3b82f6);
+    }
+    
     .file-input {
         position: absolute;
-        width: 0;
-        height: 0;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
         opacity: 0;
+        cursor: pointer;
     }
     .dropzone-content {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 0.5rem;
-    }
-    .dropzone-icon {
-        color: var(--text-muted);
+        pointer-events: none; /* Let the input handle clicks */
     }
     .dropzone-text {
-        font-size: 0.875rem;
-        color: var(--text-muted);
+        font-size: 0.95rem;
+        color: var(--text-muted, #64748b);
+        margin-bottom: 0.5rem;
     }
     .dropzone-filename {
-        font-size: 0.8125rem;
-        font-weight: 500;
-        color: var(--accent);
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--accent, #3b82f6);
+        background: rgba(59, 130, 246, 0.1);
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        opacity: 0;
+        transform: translateY(10px);
+        transition: all 0.3s ease;
     }
+    .dropzone-filename.visible {
+        opacity: 1;
+        transform: translateY(0);
+    }
+
+    /* Modern Input */
+    .modern-input {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border, #cbd5e1);
+        border-radius: 8px;
+        font-size: 1rem;
+        transition: all 0.2s ease;
+        outline: none;
+        box-sizing: border-box;
+    }
+    .modern-input:focus {
+        border-color: var(--accent, #3b82f6);
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    /* Form Actions & Buttons */
     .form-actions {
-        margin-top: 1.5rem;
+        margin-top: 2rem;
     }
+    .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1.5rem;
+        font-weight: 600;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        width: 100%;
+    }
+    .btn-primary {
+        background: var(--accent, #3b82f6);
+        color: white;
+    }
+    .btn-success {
+        background: var(--success, #10b981);
+        color: white;
+    }
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none !important;
+        box-shadow: none !important;
+    }
+    .btn:not(:disabled):hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+    }
+
+    /* Download Section Animations */
     .download-section {
         margin-top: 2rem;
-        padding-top: 2rem;
-        border-top: 1px solid var(--border);
     }
+    .download-section:not(.hidden) {
+        animation: slideUpFade 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+    
     .download-card {
         display: flex;
-        flex-direction: column;
         align-items: center;
-        gap: 1rem;
-        padding: 1.5rem;
-        background: var(--bg);
-        border-radius: 8px;
+        justify-content: space-between;
+        gap: 1.5rem;
+        padding: 1.5rem 2rem;
+        background: white;
+        border-radius: 12px;
+        border: 1px solid var(--success-light, #a7f3d0);
+        box-shadow: 0 10px 25px rgba(16, 185, 129, 0.1);
+        transition: transform 0.3s ease;
     }
-    .download-icon {
-        color: var(--success);
+    .download-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 15px 35px rgba(16, 185, 129, 0.15);
+    }
+    
+    .success-icon-wrapper {
+        background: rgba(16, 185, 129, 0.1);
+        color: var(--success, #10b981);
+        padding: 1rem;
+        border-radius: 50%;
+    }
+    .download-info {
+        flex: 1;
+    }
+    .download-title {
+        margin: 0 0 0.25rem 0;
+        font-size: 1.125rem;
+        color: var(--text-main, #334155);
     }
     .download-text {
+        margin: 0;
         font-size: 0.875rem;
-        color: var(--text-muted);
+        color: var(--text-muted, #64748b);
     }
+
+    /* Message Alerts */
+    .message {
+        padding: 1rem;
+        border-radius: 8px;
+        margin-bottom: 1.5rem;
+        font-weight: 500;
+        animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    }
+    .message-error { background: #fee2e2; color: #b91c1c; border-left: 4px solid #ef4444; }
+    .message-success { background: #d1fae5; color: #047857; border-left: 4px solid #10b981; }
+
+    /* Spinner */
     .spinner {
-        width: 18px;
-        height: 18px;
-        border: 2px solid rgba(255,255,255,0.3);
+        width: 20px;
+        height: 20px;
+        border: 2.5px solid rgba(255,255,255,0.3);
         border-top-color: white;
         border-radius: 50%;
-        animation: spin 0.7s linear infinite;
+        animation: spin 0.8s cubic-bezier(0.6, 0.2, 0.4, 0.8) infinite;
     }
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+
+    /* Keyframes */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes slideUpFade {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+        0% { opacity: 0; transform: scale(0.95); }
+        100% { opacity: 1; transform: scale(1); }
+    }
+    .hidden { display: none !important; }
+
+    /* Responsive adjustments */
+    @media (max-width: 600px) {
+        .download-card {
+            flex-direction: column;
+            text-align: center;
+        }
+        .download-card .btn { width: 100%; }
     }
 </style>
 {% endblock %}
@@ -156,8 +338,11 @@
         successMsg.classList.add('hidden');
     }
 
-    dropzone.addEventListener('click', () => fileInput.click());
-    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
+    // Drag and Drop Effects
+    dropzone.addEventListener('dragover', (e) => { 
+        e.preventDefault(); 
+        dropzone.classList.add('dragover'); 
+    });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover'));
     dropzone.addEventListener('drop', (e) => {
         e.preventDefault();
@@ -170,9 +355,11 @@
     function updateFileName() {
         if (fileInput.files.length) {
             fileName.textContent = fileInput.files[0].name;
+            fileName.classList.add('visible'); // Triggers the slide-up animation
             submitBtn.disabled = false;
         } else {
             fileName.textContent = '';
+            fileName.classList.remove('visible');
             submitBtn.disabled = true;
         }
     }
@@ -180,12 +367,18 @@
     form.addEventListener('submit', async (e) => {
         e.preventDefault();
         hideMessages();
+        
+        // Hide download section and reset its animation state
         downloadSection.classList.add('hidden');
+        downloadSection.style.animation = 'none';
+        downloadSection.offsetHeight; /* trigger reflow */
+        downloadSection.style.animation = null; 
 
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
         formData.append('dpi', document.getElementById('dpi').value);
 
+        // UI Loading State
         submitBtn.disabled = true;
         btnText.classList.add('hidden');
         btnSpinner.classList.remove('hidden');
@@ -201,13 +394,16 @@
                 throw new Error(data.error || 'Processing failed');
             }
 
+            // Success state handling
             showSuccess('PDF flattened successfully.');
             downloadBtn.href = '/api/download/' + data.download_id;
             downloadBtn.download = (data.original_name || 'flattened').replace(/\.pdf$/i, '_flattened.pdf');
             downloadSection.classList.remove('hidden');
+            
         } catch (err) {
             showError(err.message);
         } finally {
+            // Restore UI State
             submitBtn.disabled = false;
             btnText.classList.remove('hidden');
             btnSpinner.classList.add('hidden');
