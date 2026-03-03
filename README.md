@@ -1,4 +1,23 @@
-# Print Spool Optimizer
+<p align="center">
+  <h1 align="center">Print Spool Optimizer</h1>
+  <p align="center">OpenSource Project | Open for Contribution  </p>
+  <p align="center">
+    A high-performance PDF flattening and compression utility  
+    designed to prevent printer memory overflow and optimize print spooling.
+  </p>
+</p>
+
+<p align="center">
+  <img src="docs/webapp-ui.png" alt="Print Spool Optimizer Web UI" width="80%">
+</p>
+
+<p align="center">
+  <a href="#">Python 3.8+</a> •
+  <a href="#">MIT License</a> •
+  <a href="#">Open Source</a>
+</p>
+
+---
 
 ## Overview
 The Print Spool Optimizer is a Python utility designed to flatten and compress PDF documents. By converting complex vector graphics, fonts, and layers into standard grayscale images, it reduces the processing load on printer hardware. This prevents memory overflow and ensures rapid print spooling for large documents.
