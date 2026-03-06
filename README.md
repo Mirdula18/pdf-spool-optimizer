@@ -91,7 +91,7 @@ deactivate
 
 ---
 
-## 🐳 Docker Deployment
+##  Docker Deployment
 
 Run the app in a fully isolated container — no Python or venv setup required.
 
