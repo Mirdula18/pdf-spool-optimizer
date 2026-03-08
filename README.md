@@ -99,7 +99,7 @@ Run the app in a fully isolated container — no Python or venv setup required.
 ```bash
 docker compose up --build
 ```
-The web UI will be available at **http://localhost:5000**.
+The web UI will be available at : **http://localhost:5000**.
 
 ### Build and run manually
 ```bash
