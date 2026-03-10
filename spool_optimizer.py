@@ -1,23 +1,58 @@
 import argparse
 import logging
+import os
 import sys
 import time
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from pathlib import Path
-import fitz   
+from typing import Tuple
+
+import fitz
+
+
+def _render_page(args: Tuple[str, int, int]) -> Tuple[int, bytes, float, float]:
+    """Render a single PDF page to a grayscale JPEG in an isolated worker process.
+
+    This function must live at module level so that multiprocessing can pickle it
+    when spawning worker processes on all platforms (including Windows).
+
+    Args:
+        args: Tuple of (pdf_path_str, page_num, dpi).
+
+    Returns:
+        Tuple of (page_num, jpeg_bytes, page_width, page_height).
+    """
+    pdf_path_str, page_num, dpi = args
+    doc = fitz.open(pdf_path_str)
+    page = doc.load_page(page_num)
+    pix = page.get_pixmap(dpi=dpi, alpha=False, colorspace=fitz.csGRAY)
+    img_bytes = pix.tobytes("jpeg")
+    width = page.rect.width
+    height = page.rect.height
+    doc.close()
+    return page_num, img_bytes, width, height
 
 
 class DocumentSpoolOptimizer:
     """Flattens and compresses PDF documents by rasterizing each page to grayscale JPEG
-    images, reducing processing load on printer hardware and preventing memory overflow."""
+    images, reducing processing load on printer hardware and preventing memory overflow.
 
-    def __init__(self, dpi: int = 100):
-        """Initialize the optimizer with a target rasterization DPI.
+    Pages are rendered in parallel using a multiprocessing pool so that large PDFs
+    benefit from all available CPU cores, then reassembled in the correct order.
+    """
+
+    def __init__(self, dpi: int = 100, workers: int = 0):
+        """Initialize the optimizer.
 
         Args:
             dpi: Dots per inch for rasterization. Must be between 72 and 300.
                  Lower values produce smaller files; higher values retain more detail.
+            workers: Number of worker processes for parallel rendering.
+                     0 (default) means use all logical CPU cores.
+                     1 disables multiprocessing and runs sequentially.
         """
         self.dpi = dpi
+        self.workers = workers if workers > 0 else (os.cpu_count() or 1)
         self.logger = self._setup_logger()
 
     @staticmethod
@@ -39,10 +74,10 @@ class DocumentSpoolOptimizer:
         return logger
 
     def process_document(self, input_path: Path, output_path: Path) -> bool:
-        """Flatten and compress a PDF document.
+        """Flatten and compress a PDF document using parallel page rendering.
 
-        Each page is rasterized to a grayscale JPEG at the configured DPI and
-        reassembled into a new PDF with maximum compression.
+        Pages are rasterized concurrently across worker processes then reassembled
+        in the correct order into a single compressed output PDF.
 
         Args:
             input_path: Path to the source PDF file.
@@ -59,7 +94,7 @@ class DocumentSpoolOptimizer:
         self.logger.info("Starting optimization for: %s at %d DPI (Grayscale)", input_path.name, self.dpi)
 
         try:
-            # Attempt to open the PDF
+            # Attempt to open the PDF and perform validation checks
             src_doc = fitz.open(input_path)
             
             # Check if the PDF is encrypted/password-protected
@@ -69,91 +104,66 @@ class DocumentSpoolOptimizer:
                 return False
             
             # Check if the PDF has pages (detect corrupted/empty files)
-            if len(src_doc) == 0:
-                self.logger.error("PDF has no pages or is corrupted: %s", input_path.name)
-                src_doc.close()
-                return False
-            
             total_pages = len(src_doc)
-            
-            # PRIORITY 1: Verify page tree integrity by attempting to load first page
-            try:
-                first_page = src_doc.load_page(0)
-            except Exception as e:
-                self.logger.error("Page tree corruption - cannot load first page: %s - %s", 
-                                input_path.name, str(e))
-                src_doc.close()
-                return False
-            
-            # Check for extreme page dimensions that could cause memory issues
-            page_width = first_page.rect.width
-            page_height = first_page.rect.height
-            max_dimension = 14400  # 200 inches at 72 DPI, reasonable maximum
-            
-            if page_width > max_dimension or page_height > max_dimension or page_width <= 0 or page_height <= 0:
-                self.logger.error("Invalid page dimensions (%dx%d) in PDF: %s", 
-                                int(page_width), int(page_height), input_path.name)
-                src_doc.close()
-                return False
-            
-            # PRIORITY 2: Verify content stream integrity by attempting to render first page
-            try:
-                test_pix = first_page.get_pixmap(dpi=self.dpi, alpha=False, colorspace=fitz.csGRAY)
-                test_pix = None  # Release memory
-            except Exception as e:
-                self.logger.error("Content stream corruption - cannot render first page: %s - %s", 
-                                input_path.name, str(e))
+            if total_pages == 0:
+                self.logger.error("PDF has no pages or is corrupted: %s", input_path.name)
                 src_doc.close()
                 return False
             
             self.logger.info("Total pages to process: %d", total_pages)
             
-            out_doc = fitz.open()
-
-            for page_num in range(total_pages):
-                try:
-                    page = src_doc.load_page(page_num)
-                except Exception as e:
-                    self.logger.error("Failed to load page %d/%d: %s - %s", 
-                                    page_num + 1, total_pages, input_path.name, str(e))
-                    src_doc.close()
-                    out_doc.close()
-                    return False
-                
-                try:
-                    pix = page.get_pixmap(dpi=self.dpi, alpha=False, colorspace=fitz.csGRAY)
-                except Exception as e:
-                    self.logger.error("Failed to render page %d/%d - content stream may be corrupted: %s", 
-                                    page_num + 1, total_pages, str(e))
-                    src_doc.close()
-                    out_doc.close()
-                    return False
- 
-                img_bytes = pix.tobytes("jpeg")
-                
-                out_page = out_doc.new_page(width=page.rect.width, height=page.rect.height)
-                out_page.insert_image(out_page.rect, stream=img_bytes)
-                
-                if (page_num + 1) % 10 == 0:
-                    self.logger.info("Processed %d/%d pages...", page_num + 1, total_pages)
-
-          
-            out_doc.save(
-                output_path,
-                garbage=4,
-                deflate=True,
-                clean=True
-            )
+            # Validate that at least the first page can be loaded and rendered
+            try:
+                first_page = src_doc.load_page(0)
+                first_page.get_pixmap(dpi=self.dpi, alpha=False, colorspace=fitz.csGRAY)
+                self.logger.info("Validation passed: First page rendered successfully")
+            except Exception as e:
+                self.logger.error("Content stream corruption - cannot render pages: %s - %s", input_path.name, str(e))
+                src_doc.close()
+                return False
             
             src_doc.close()
+            
+            # Use multiprocessing for parallel page rendering
+            pdf_path_str = str(input_path.absolute())
+            tasks = [(pdf_path_str, page_num, self.dpi) for page_num in range(total_pages)]
+            
+            rendered_pages = {}
+            
+            if self.workers == 1:
+                # Sequential processing
+                for page_num in range(total_pages):
+                    page_num_result, img_bytes, width, height = _render_page((pdf_path_str, page_num, self.dpi))
+                    rendered_pages[page_num_result] = (img_bytes, width, height)
+                    if (page_num + 1) % 10 == 0:
+                        self.logger.info("Processed %d/%d pages...", page_num + 1, total_pages)
+            else:
+                # Parallel processing
+                with ProcessPoolExecutor(max_workers=self.workers) as executor:
+                    futures = {executor.submit(_render_page, task): task[1] for task in tasks}
+                    
+                    for future in as_completed(futures):
+                        page_num, img_bytes, width, height = future.result()
+                        rendered_pages[page_num] = (img_bytes, width, height)
+                        
+                        if len(rendered_pages) % 10 == 0:
+                            self.logger.info("Processed %d/%d pages...", len(rendered_pages), total_pages)
+            
+            # Assemble rendered pages into output PDF
+            out_doc = fitz.open()
+            for page_num in range(total_pages):
+                img_bytes, width, height = rendered_pages[page_num]
+                out_page = out_doc.new_page(width=width, height=height)
+                out_page.insert_image(out_page.rect, stream=img_bytes)
+
+            out_doc.save(output_path, garbage=4, deflate=True, clean=True)
             out_doc.close()
 
             elapsed_time = time.time() - start_time
             self.logger.info(
-                "Optimization complete. Saved to: %s. Time taken: %.2fs", 
-                output_path.name, elapsed_time
+                "Optimization complete. Saved to: %s. Time taken: %.2fs",
+                output_path.name, elapsed_time,
             )
-            
             self._log_compression_ratio(input_path, output_path)
             return True
 
@@ -213,7 +223,11 @@ def main() -> None:
     parser.add_argument("-i", "--input", required=True, type=Path, help="Path to input PDF file.")
     parser.add_argument("-o", "--output", required=True, type=Path, help="Path for output PDF file.")
     parser.add_argument("--dpi", type=int, default=100, help="Rasterization DPI (default: 100).")
-    
+    parser.add_argument(
+        "--workers", type=int, default=0,
+        help="Worker processes for parallel rendering (default: 0 = all CPU cores).",
+    )
+
     args = parser.parse_args()
 
     if not args.input.exists():
@@ -224,7 +238,11 @@ def main() -> None:
         print(f"Error: DPI must be between 72 and 300, got {args.dpi}", file=sys.stderr)
         sys.exit(1)
 
-    optimizer = DocumentSpoolOptimizer(dpi=args.dpi)
+    if args.workers < 0:
+        print(f"Error: --workers must be 0 or a positive integer, got {args.workers}", file=sys.stderr)
+        sys.exit(1)
+
+    optimizer = DocumentSpoolOptimizer(dpi=args.dpi, workers=args.workers)
     success = optimizer.process_document(args.input, args.output)
 
     if not success:
